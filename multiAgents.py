@@ -10,13 +10,16 @@
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
-
+import time
+from collections import deque
+from pprint import pprint
 
 from util import manhattanDistance
 from game import Directions
 import random, util
 
 from game import Agent
+
 
 class ReflexAgent(Agent):
     """
@@ -27,7 +30,6 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-
 
     def getAction(self, gameState):
         """
@@ -40,15 +42,22 @@ class ReflexAgent(Agent):
         """
         # Collect legal moves and successor states
         legalMoves = gameState.getLegalActions()
+        print("legalMoves:", legalMoves)
 
         # Choose one of the best actions
         scores = [self.evaluationFunction(gameState, action) for action in legalMoves]
         bestScore = max(scores)
         bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
-        chosenIndex = random.choice(bestIndices) # Pick randomly among the best
+        chosenIndex = random.choice(bestIndices)  # Pick randomly among the best
 
         "Add more of your code here if you want to"
 
+        for i in range(len(scores)):
+            print(legalMoves[i], " : ", scores[i])
+        print(legalMoves[chosenIndex])
+        print("after action:")
+        print(gameState)
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         return legalMoves[chosenIndex]
 
     def evaluationFunction(self, currentGameState, action):
@@ -66,15 +75,92 @@ class ReflexAgent(Agent):
         Print out these variables to see what you're getting, then combine them
         to create a masterful evaluation function.
         """
+
         # Useful information you can extract from a GameState (pacman.py)
+        # print("currentGameState:\n", currentGameState, "\n*****\n")
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
-        newGhostStates = successorGameState.getGhostStates()
-        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        mapStr = successorGameState.__str__()
+        GameMap = mapStr.splitlines()
+        GameMap.pop()
+        GameMap.reverse()
+        num_rows = len(GameMap)
+        num_cols = len(GameMap[0])
+
+        # Define the directions: up, down, left, right
+        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+
+        def find_nearest_food(start_point):
+            # Initialize the visited set and the queue for BFS
+            visited = set()
+            queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
+
+            print("start_point : ", start_point[1], start_point[0])
+            while queue:
+                current_point, distance = queue.popleft()
+                row, col = current_point
+                # Check if the current point contains food
+
+                if row < num_rows and col < num_cols and (GameMap[row][col] == '.' or GameMap[row][col] == 'o'):
+                    return distance
+
+                # Explore the neighbors in all four directions
+                for direction in directions:
+                    new_row = row + direction[0]
+                    new_col = col + direction[1]
+
+                    # Check if the new position is within the map boundaries and not a wall
+                    if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%' and \
+                            GameMap[new_row][new_col] != 'G':
+                        new_point = (new_row, new_col)
+
+                        # Check if the new point has not been visited before
+                        if new_point not in visited:
+                            visited.add(new_point)
+                            queue.append((new_point, distance + 1))
+
+            # If no food is found, return [] to indicate that there is no reachable food
+            return 100
+
+        def find_nearest_ghost(start_point):
+            visited = set()
+            queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
+
+            print("start_point : ", start_point[1], start_point[0])
+            while queue:
+                current_point, distance = queue.popleft()
+                row, col = current_point
+                # Check if the current point contains food
+
+                if row < num_rows and col < num_cols and GameMap[row][col] == 'G':
+                    return distance
+
+                # Explore the neighbors in all four directions
+                for direction in directions:
+                    new_row = row + direction[0]
+                    new_col = col + direction[1]
+
+                    # Check if the new position is within the map boundaries and not a wall
+                    if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%':
+                        new_point = (new_row, new_col)
+
+                        # Check if the new point has not been visited before
+                        if new_point not in visited:
+                            visited.add(new_point)
+                            queue.append((new_point, distance + 1))
+
+            # If no food is found, return [] to indicate that there is no reachable food
+            return 100
+
+        nearest_food = find_nearest_food(newPos)
+        score = 1 / nearest_food
+        nearest_ghost = find_nearest_ghost(newPos)
+        if nearest_ghost <= 2:
+            score += -100
+        return score + successorGameState.getScore()
+
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -85,6 +171,7 @@ def scoreEvaluationFunction(currentGameState):
     (not reflex agents).
     """
     return currentGameState.getScore()
+
 
 class MultiAgentSearchAgent(Agent):
     """
@@ -101,10 +188,11 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
-        self.index = 0 # Pacman is always agent index 0
+    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
+
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
@@ -137,6 +225,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
@@ -148,6 +237,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -164,6 +254,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
+
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -173,6 +264,7 @@ def betterEvaluationFunction(currentGameState):
     """
     "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
+
 
 # Abbreviation
 better = betterEvaluationFunction
