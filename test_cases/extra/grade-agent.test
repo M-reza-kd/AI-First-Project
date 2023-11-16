@@ -8,4 +8,4 @@ numGames: "5"
 scoreThresholds: "2500 2900"
 
 randomSeed: "0"
-ghosts: "[DirectionalGhost(1), DirectionalGhost(2), DirectionalGhost(3)]"
+ghosts: "[RandomGhost(1), RandomGhost(2), RandomGhost(3)]"

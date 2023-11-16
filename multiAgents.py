@@ -21,6 +21,69 @@ import random, util
 from game import Agent
 
 
+def find_nearest_food(start_point, GameMap, num_rows, num_cols):
+    directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+    visited = set()
+    queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
+
+    while queue:
+        current_point, distance = queue.popleft()
+        row, col = current_point
+        # Check if the current point contains food
+
+        if row < num_rows and col < num_cols and GameMap[row][col] == '.':
+            return distance
+
+        # Explore the neighbors in all four directions
+        for direction in directions:
+            new_row = row + direction[0]
+            new_col = col + direction[1]
+
+            # Check if the new position is within the map boundaries and not a wall
+            if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%' and \
+                    GameMap[new_row][new_col] != 'G':
+                new_point = (new_row, new_col)
+
+                # Check if the new point has not been visited before
+                if new_point not in visited:
+                    visited.add(new_point)
+                    queue.append((new_point, distance + 1))
+
+    # If no food is found, return 100 to indicate that there is no reachable food
+    return 100
+
+
+def find_nearest_ghost(start_point, GameMap, num_rows, num_cols):
+    directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+    visited = set()
+    queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
+
+    while queue:
+        current_point, distance = queue.popleft()
+        row, col = current_point
+        # Check if the current point contains food
+
+        if row < num_rows and col < num_cols and GameMap[row][col] == 'G':
+            return distance
+
+        # Explore the neighbors in all four directions
+        for direction in directions:
+            new_row = row + direction[0]
+            new_col = col + direction[1]
+
+            # Check if the new position is within the map boundaries and not a wall
+            if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%':
+                new_point = (new_row, new_col)
+
+                # Check if the new point has not been visited before
+                if new_point not in visited:
+                    visited.add(new_point)
+                    queue.append((new_point, distance + 1))
+
+    # If no food is found, return 100 to indicate that there is no reachable food
+    return 100
+
+
 class ReflexAgent(Agent):
     """
     A reflex agent chooses an action at each choice point by examining
@@ -42,7 +105,6 @@ class ReflexAgent(Agent):
         """
         # Collect legal moves and successor states
         legalMoves = gameState.getLegalActions()
-        print("legalMoves:", legalMoves)
 
         # Choose one of the best actions
         scores = [self.evaluationFunction(gameState, action) for action in legalMoves]
@@ -60,7 +122,8 @@ class ReflexAgent(Agent):
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         return legalMoves[chosenIndex]
 
-    def evaluationFunction(self, currentGameState, action):
+    @staticmethod
+    def evaluationFunction(currentGameState, action):
         """
         Design a better evaluation function here.
 
@@ -82,84 +145,20 @@ class ReflexAgent(Agent):
         newPos = successorGameState.getPacmanPosition()
 
         "*** YOUR CODE HERE ***"
-        mapStr = successorGameState.__str__()
-        GameMap = mapStr.splitlines()
-        GameMap.pop()
-        GameMap.reverse()
-        num_rows = len(GameMap)
-        num_cols = len(GameMap[0])
+        GameMap = successorGameState.__str__().splitlines()[:-1][::-1]
+        num_rows, num_cols = len(GameMap), len(GameMap[0])
 
-        # Define the directions: up, down, left, right
-        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-
-        def find_nearest_food(start_point):
-            # Initialize the visited set and the queue for BFS
-            visited = set()
-            queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
-
-            print("start_point : ", start_point[1], start_point[0])
-            while queue:
-                current_point, distance = queue.popleft()
-                row, col = current_point
-                # Check if the current point contains food
-
-                if row < num_rows and col < num_cols and (GameMap[row][col] == '.' or GameMap[row][col] == 'o'):
-                    return distance
-
-                # Explore the neighbors in all four directions
-                for direction in directions:
-                    new_row = row + direction[0]
-                    new_col = col + direction[1]
-
-                    # Check if the new position is within the map boundaries and not a wall
-                    if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%' and \
-                            GameMap[new_row][new_col] != 'G':
-                        new_point = (new_row, new_col)
-
-                        # Check if the new point has not been visited before
-                        if new_point not in visited:
-                            visited.add(new_point)
-                            queue.append((new_point, distance + 1))
-
-            # If no food is found, return [] to indicate that there is no reachable food
-            return 100
-
-        def find_nearest_ghost(start_point):
-            visited = set()
-            queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
-
-            print("start_point : ", start_point[1], start_point[0])
-            while queue:
-                current_point, distance = queue.popleft()
-                row, col = current_point
-                # Check if the current point contains food
-
-                if row < num_rows and col < num_cols and GameMap[row][col] == 'G':
-                    return distance
-
-                # Explore the neighbors in all four directions
-                for direction in directions:
-                    new_row = row + direction[0]
-                    new_col = col + direction[1]
-
-                    # Check if the new position is within the map boundaries and not a wall
-                    if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%':
-                        new_point = (new_row, new_col)
-
-                        # Check if the new point has not been visited before
-                        if new_point not in visited:
-                            visited.add(new_point)
-                            queue.append((new_point, distance + 1))
-
-            # If no food is found, return [] to indicate that there is no reachable food
-            return 100
-
-        nearest_food = find_nearest_food(newPos)
-        score = 1 / nearest_food
-        nearest_ghost = find_nearest_ghost(newPos)
-        if nearest_ghost <= 2:
-            score += -100
-        return score + successorGameState.getScore()
+        # print("currentGameState :", currentGameState.getScore(), "successorGameState :", successorGameState.getScore())
+        score = successorGameState.getScore()
+        nearest_food = find_nearest_food(newPos, GameMap, num_rows, num_cols)
+        score += 1 / (nearest_food * 100)
+        nearest_ghost = find_nearest_ghost(newPos, GameMap, num_rows, num_cols)
+        newGhostStates = successorGameState.getGhostStates()
+        minScaredTimes = min([ghostState.scaredTimer for ghostState in newGhostStates])
+        if minScaredTimes == 0 and nearest_ghost > 0:
+            score -= (15 / nearest_ghost)
+        # print("nearest_food : ", nearest_food, "nearest_ghost : ", nearest_ghost, "score : ", score)
+        return score
 
 
 def scoreEvaluationFunction(currentGameState):
@@ -189,6 +188,7 @@ class MultiAgentSearchAgent(Agent):
     """
 
     def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        super().__init__()
         self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
@@ -199,8 +199,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
     Your minimax agent (question 2)
     """
 
+    def __init__(self, evalFn='betterEvaluationFunctionForMinimax', depth='3'):
+        super().__init__(evalFn, depth)
+
     def mini_max(self, game_state, depth, agent_num):
-        if game_state.isWin() or game_state.isLose():
+        if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
             return self.evaluationFunction(game_state)
 
         num_agents = game_state.getNumAgents()
@@ -217,6 +220,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     max_eval_score = score
                     best_action = move
             if depth == 0:
+                # print("list of valid movement : ", legalMoves)
+                # print("Score :", max_eval_score, "Best Action :", best_action)
                 return best_action
             else:
                 return max_eval_score
@@ -229,10 +234,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
             for move in legalMoves:
                 successorGameState = game_state.generateSuccessor(agent_num, move)
-                if next_agent == 0 and depth == self.depth:
-                    score = self.evaluationFunction(successorGameState)
-                else:
-                    score = self.mini_max(successorGameState, depth, next_agent)
+                score = self.mini_max(successorGameState, depth, next_agent)
                 min_eval_score = min(min_eval_score, score)
             return min_eval_score
 
@@ -301,6 +303,26 @@ def betterEvaluationFunction(currentGameState):
     """
     "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
+
+
+def betterEvaluationFunctionForMinimax(currentGameState):
+    newPos = currentGameState.getPacmanPosition()
+
+    "*** YOUR CODE HERE ***"
+    GameMap = currentGameState.__str__().splitlines()[:-1][::-1]
+    num_rows, num_cols = len(GameMap), len(GameMap[0])
+
+    # print("currentGameState :", currentGameState.getScore(), "successorGameState :", currentGameState.getScore())
+    score = currentGameState.getScore()
+    nearest_food = find_nearest_food(newPos, GameMap, num_rows, num_cols)
+    score += 1 / (nearest_food * 100)
+    nearest_ghost = find_nearest_ghost(newPos, GameMap, num_rows, num_cols)
+    newGhostStates = currentGameState.getGhostStates()
+    minScaredTimes = min([ghostState.scaredTimer for ghostState in newGhostStates])
+    if minScaredTimes == 0 and 3 > nearest_ghost > 0:
+        score -= (1 / nearest_ghost)
+    # print("nearest_food : ", nearest_food, "nearest_ghost : ", nearest_ghost, "score : ", score)
+    return score
 
 
 # Abbreviation
