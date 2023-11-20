@@ -10,7 +10,7 @@
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
-import time
+from time import time
 from collections import deque
 from pprint import pprint
 
@@ -77,7 +77,17 @@ def find_nearest_ghost(start_point, GameMap, num_rows, num_cols, max_move=3):
 
     return 100
 
-
+def timer_func(func):
+    # This function shows the execution time of
+    # the function object passed
+    def wrap_func(*args, **kwargs):
+        t1 = time()
+        result = func(*args, **kwargs)
+        t2 = time()
+        print(f'Function {func.__name__!r} executed in {(t2-t1):.4f}s')
+        return result
+    return wrap_func
+@timer_func
 def find_nearest_thing(start_point, GameMap, num_rows, num_cols):
     directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
     visited = {(start_point[1], start_point[0])}  # Set of tuples (row, col)
@@ -207,9 +217,9 @@ def scoreEvaluationFunction(currentGameState):
 
 class MultiAgentSearchAgent(Agent):
     """
-    This class provides some common elements to all of your
-    multi-agent searchers.  Any methods defined here will be available
-    to the MinimaxPacmanAgent, AlphaBetaPacmanAgent & ExpectimaxPacmanAgent.
+
+
+
 
     You *do not* need to make any changes here, but you can if you want to
     add functionality to all your adversarial search agents.  Please do not
@@ -220,7 +230,7 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn='betterEvaluationFunctionForMinimax', depth='3'):
+    def __init__(self, evalFn='betterEvaluationFunctionForMinimax', depth='2'):
         super().__init__()
         self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
@@ -452,7 +462,6 @@ def betterEvaluationFunction(currentGameState):
 def betterEvaluationFunctionForMinimax(currentGameState):
     newPos = currentGameState.getPacmanPosition()
 
-    "*** YOUR CODE HERE ***"
     GameMap = currentGameState.__str__().splitlines()[:-1][::-1]
     num_rows, num_cols = len(GameMap), len(GameMap[0])
 
@@ -462,7 +471,7 @@ def betterEvaluationFunctionForMinimax(currentGameState):
         return score
 
     nearest_food, nearest_ghost, nearest_capsule = find_nearest_thing(newPos, GameMap, num_rows, num_cols)
-    score += 1 / (nearest_food * 1000)
+    score += (1 / (nearest_food * 1000))
     newGhostStates = currentGameState.getGhostStates()
     minScaredTimes = min([ghostState.scaredTimer for ghostState in newGhostStates])
     if minScaredTimes == 0 and 3 > nearest_ghost > 0:
@@ -470,7 +479,7 @@ def betterEvaluationFunctionForMinimax(currentGameState):
     if minScaredTimes:
         score += (1 / (nearest_ghost * 100) ** 2)
     if nearest_capsule != 100:
-        score += (1 / (nearest_capsule * 50))
+        score += (1 / (nearest_capsule * 10))
 
     return score
 
