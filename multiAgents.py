@@ -345,7 +345,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
-    def expecti_max(self, game_state, depth, agent_num, alpha, beta):
+    def expecti_max(self, game_state, depth, agent_num):
         if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
             return self.evaluationFunction(game_state)
 
@@ -358,7 +358,50 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
             max_eval_score = float('-inf')
             for move in legalMoves:
                 successorGameState = game_state.generateSuccessor(agent_num, move)
-                score = self.expecti_max(successorGameState, depth, next_agent, alpha, beta)
+                score = self.expecti_max(successorGameState, depth, next_agent)
+                if score > max_eval_score:
+                    max_eval_score = score
+                    best_action = move
+            if depth == 0:
+                return best_action
+            else:
+                return max_eval_score
+
+        else:
+            if agent_num + 1 == num_agents:
+                depth += 1
+                next_agent = 0
+            ind = sum_eval_score = 0
+            for move in legalMoves:
+                ind += 1
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.expecti_max(successorGameState, depth, next_agent)
+                sum_eval_score += score
+            return sum_eval_score / len(legalMoves)
+
+    def getAction(self, gameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction
+        """
+        "*** YOUR CODE HERE ***"
+        return self.expecti_max(gameState, 0, 0)
+
+
+class ExpectiMaxAlphaBetaAgent(MultiAgentSearchAgent):
+    def expectimax_alpha_beta(self, game_state, depth, agent_num, alpha, beta):
+        if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
+            return self.evaluationFunction(game_state)
+
+        num_agents = game_state.getNumAgents()
+        legalMoves = game_state.getLegalActions(agent_num)
+        next_agent = agent_num + 1
+        best_action = Directions.STOP
+
+        if agent_num == 0:
+            max_eval_score = float('-inf')
+            for move in legalMoves:
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.expectimax_alpha_beta(successorGameState, depth, next_agent, alpha, beta)
                 if score > max_eval_score:
                     max_eval_score = score
                     best_action = move
@@ -372,29 +415,27 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                 return max_eval_score
 
         else:
-            min_eval_score = float('inf')
+            expect_eval_score = 0
+            legal_moves = game_state.getLegalActions(agent_num)
             if agent_num + 1 == num_agents:
                 depth += 1
                 next_agent = 0
-            ind = avg_eval_score = 0
-            for move in legalMoves:
-                ind += 1
-                successorGameState = game_state.generateSuccessor(agent_num, move)
-                score = self.expecti_max(successorGameState, depth, next_agent, alpha, beta)
-                min_eval_score = min(min_eval_score, score)
-                avg_eval_score = (((avg_eval_score * ind) + score) / (ind + 1))
-                beta = min(beta, min_eval_score)
-                # print(successorGameState.state, alpha, beta)
-                if min_eval_score <= alpha:
+
+            for move in legal_moves:
+                successor_state = game_state.generateSuccessor(agent_num, move)
+                score = self.expectimax_alpha_beta(successor_state, depth, agent_num + 1, alpha, beta)  # Continue to the next agent (MAX node)
+                expect_eval_score += score
+                beta = min(beta, expect_eval_score)
+                if alpha >= beta:
                     break
-            return avg_eval_score
+            return expect_eval_score / len(legalMoves)
 
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        return self.expecti_max(gameState, 0, 0, float('-inf'), float('inf'))
+        return self.expectimax_alpha_beta(gameState, 0, 0, float('-inf'), float('inf'))
 
 
 def betterEvaluationFunction(currentGameState):

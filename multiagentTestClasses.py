@@ -389,6 +389,8 @@ class PacmanGameTreeTest(testClasses.TestCase):
         lay = layout.Layout([l.strip() for l in self.layout_text.split('\n')])
         if self.alg == 'ExpectimaxAgent':
             ourPacOptions = {'expectimax': 'True'}
+        elif self.alg == 'ExpectimaxAlphaBetaAgent':
+            ourPacOptions = {'expectimaxalphabeta': 'True'}
         elif self.alg == 'AlphaBetaAgent':
             ourPacOptions = {'alphabeta': 'True'}
         else:
