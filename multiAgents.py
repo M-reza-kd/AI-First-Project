@@ -14,6 +14,7 @@ import time
 from collections import deque
 from pprint import pprint
 
+from pacman import GameState
 from util import manhattanDistance
 from game import Directions
 import random, util
@@ -53,35 +54,67 @@ def find_nearest_food(start_point, GameMap, num_rows, num_cols):
     return 100
 
 
-def find_nearest_ghost(start_point, GameMap, num_rows, num_cols):
+def find_nearest_ghost(start_point, GameMap, num_rows, num_cols, max_move=3):
     directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-    visited = set()
-    queue = deque([((start_point[1], start_point[0]), 0)])  # (point, distance)
+    visited = {(start_point[1], start_point[0])}  # Set of tuples (row, col)
+    queue = deque([(start_point[1], start_point[0], 0)])  # (row, col, distance)
 
     while queue:
-        current_point, distance = queue.popleft()
-        row, col = current_point
-        # Check if the current point contains food
+        row, col, distance = queue.popleft()
 
-        if row < num_rows and col < num_cols and GameMap[row][col] == 'G':
+        if GameMap[row][col] == 'G' or distance > max_move:
             return distance
 
-        # Explore the neighbors in all four directions
         for direction in directions:
             new_row = row + direction[0]
             new_col = col + direction[1]
+            new_point = (new_row, new_col)
 
-            # Check if the new position is within the map boundaries and not a wall
-            if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%':
-                new_point = (new_row, new_col)
+            if 0 <= new_row < num_rows and 0 <= new_col < num_cols \
+                    and GameMap[new_row][new_col] != '%' and new_point not in visited:
+                visited.add(new_point)
+                queue.append((new_row, new_col, distance + 1))
 
-                # Check if the new point has not been visited before
-                if new_point not in visited:
-                    visited.add(new_point)
-                    queue.append((new_point, distance + 1))
-
-    # If no food is found, return 100 to indicate that there is no reachable food
     return 100
+
+
+def find_nearest_thing(start_point, GameMap, num_rows, num_cols):
+    directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+    visited = {(start_point[1], start_point[0])}  # Set of tuples (row, col)
+    queue = deque([(start_point[1], start_point[0], 0)])  # (row, col, distance)
+    foodDist = 100
+    ghostDist = 5
+    capsuleDist = 100
+    ghost_flag = food_flag = capsule_flag = False
+
+    while queue:
+        row, col, distance = queue.popleft()
+
+        if GameMap[row][col] == '.':
+            foodDist = min(distance, foodDist)
+            food_flag = True
+        if GameMap[row][col] == 'o':
+            capsuleDist = min(distance, capsuleDist)
+            capsule_flag = True
+        if GameMap[row][col] == 'G':
+            ghostDist = min(distance, ghostDist)
+            ghost_flag = True
+            continue
+
+        if food_flag and (ghost_flag or distance > 3) and (capsule_flag or distance > 10):
+            return foodDist, ghostDist, capsuleDist
+
+        for direction in directions:
+            new_row = row + direction[0]
+            new_col = col + direction[1]
+            new_point = (new_row, new_col)
+
+            if 0 <= new_row < num_rows and 0 <= new_col < num_cols and GameMap[new_row][new_col] != '%' \
+                    and new_point not in visited:
+                visited.add(new_point)
+                queue.append((new_row, new_col, distance + 1))
+
+    return foodDist, ghostDist, capsuleDist
 
 
 class ReflexAgent(Agent):
@@ -187,7 +220,7 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+    def __init__(self, evalFn='betterEvaluationFunctionForMinimax', depth='3'):
         super().__init__()
         self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
@@ -195,13 +228,6 @@ class MultiAgentSearchAgent(Agent):
 
 
 class MinimaxAgent(MultiAgentSearchAgent):
-    """
-    Your minimax agent (question 2)
-    """
-
-    def __init__(self, evalFn='betterEvaluationFunctionForMinimax', depth='3'):
-        super().__init__(evalFn, depth)
-
     def mini_max(self, game_state, depth, agent_num):
         if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
             return self.evaluationFunction(game_state)
@@ -220,8 +246,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     max_eval_score = score
                     best_action = move
             if depth == 0:
-                # print("list of valid movement : ", legalMoves)
-                # print("Score :", max_eval_score, "Best Action :", best_action)
                 return best_action
             else:
                 return max_eval_score
@@ -266,16 +290,54 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
-    """
-    Your minimax agent with alpha-beta pruning (question 3)
-    """
+    def mini_max(self, game_state, depth, agent_num, alpha, beta):
+        if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
+            return self.evaluationFunction(game_state)
+
+        num_agents = game_state.getNumAgents()
+        legalMoves = game_state.getLegalActions(agent_num)
+        next_agent = agent_num + 1
+        best_action = Directions.STOP
+
+        if agent_num == 0:
+            max_eval_score = float('-inf')
+            for move in legalMoves:
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.mini_max(successorGameState, depth, next_agent, alpha, beta)
+                if score > max_eval_score:
+                    max_eval_score = score
+                    best_action = move
+                alpha = max(alpha, max_eval_score)
+                # print(successorGameState.state, " : ", alpha, beta)
+                if beta <= max_eval_score:
+                    break
+            if depth == 0:
+                return best_action
+            else:
+                return max_eval_score
+
+        else:
+            min_eval_score = float('inf')
+            if agent_num + 1 == num_agents:
+                depth += 1
+                next_agent = 0
+
+            for move in legalMoves:
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.mini_max(successorGameState, depth, next_agent, alpha, beta)
+                min_eval_score = min(min_eval_score, score)
+                beta = min(beta, min_eval_score)
+                # print(successorGameState.state, alpha, beta)
+                if min_eval_score <= alpha:
+                    break
+            return min_eval_score
 
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.mini_max(gameState, 0, 0, float('-inf'), float('inf'))
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
@@ -283,15 +345,56 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
+    def expecti_max(self, game_state, depth, agent_num, alpha, beta):
+        if game_state.isWin() or game_state.isLose() or (agent_num == 0 and depth == self.depth):
+            return self.evaluationFunction(game_state)
+
+        num_agents = game_state.getNumAgents()
+        legalMoves = game_state.getLegalActions(agent_num)
+        next_agent = agent_num + 1
+        best_action = Directions.STOP
+
+        if agent_num == 0:
+            max_eval_score = float('-inf')
+            for move in legalMoves:
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.expecti_max(successorGameState, depth, next_agent, alpha, beta)
+                if score > max_eval_score:
+                    max_eval_score = score
+                    best_action = move
+                alpha = max(alpha, max_eval_score)
+                # print(successorGameState.state, " : ", alpha, beta)
+                if beta <= max_eval_score:
+                    break
+            if depth == 0:
+                return best_action
+            else:
+                return max_eval_score
+
+        else:
+            min_eval_score = float('inf')
+            if agent_num + 1 == num_agents:
+                depth += 1
+                next_agent = 0
+            ind = avg_eval_score = 0
+            for move in legalMoves:
+                ind += 1
+                successorGameState = game_state.generateSuccessor(agent_num, move)
+                score = self.expecti_max(successorGameState, depth, next_agent, alpha, beta)
+                min_eval_score = min(min_eval_score, score)
+                avg_eval_score = (((avg_eval_score * ind) + score) / (ind + 1))
+                beta = min(beta, min_eval_score)
+                # print(successorGameState.state, alpha, beta)
+                if min_eval_score <= alpha:
+                    break
+            return avg_eval_score
+
     def getAction(self, gameState):
         """
-        Returns the expectimax action using self.depth and self.evaluationFunction
-
-        All ghosts should be modeled as choosing uniformly at random from their
-        legal moves.
+        Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.expecti_max(gameState, 0, 0, float('-inf'), float('inf'))
 
 
 def betterEvaluationFunction(currentGameState):
@@ -312,18 +415,24 @@ def betterEvaluationFunctionForMinimax(currentGameState):
     GameMap = currentGameState.__str__().splitlines()[:-1][::-1]
     num_rows, num_cols = len(GameMap), len(GameMap[0])
 
-    # print("currentGameState :", currentGameState.getScore(), "successorGameState :", currentGameState.getScore())
     score = currentGameState.getScore()
-    nearest_food = find_nearest_food(newPos, GameMap, num_rows, num_cols)
-    score += 1 / (nearest_food * 100)
-    nearest_ghost = find_nearest_ghost(newPos, GameMap, num_rows, num_cols)
+
+    if currentGameState.isWin() or currentGameState.isLose():
+        return score
+
+    nearest_food, nearest_ghost, nearest_capsule = find_nearest_thing(newPos, GameMap, num_rows, num_cols)
+    score += 1 / (nearest_food * 1000)
     newGhostStates = currentGameState.getGhostStates()
     minScaredTimes = min([ghostState.scaredTimer for ghostState in newGhostStates])
     if minScaredTimes == 0 and 3 > nearest_ghost > 0:
-        score -= (1 / nearest_ghost)
-    # print("nearest_food : ", nearest_food, "nearest_ghost : ", nearest_ghost, "score : ", score)
+        score -= (5 / nearest_ghost)
+    if minScaredTimes:
+        score += (1 / (nearest_ghost * 100) ** 2)
+    if nearest_capsule != 100:
+        score += (1 / (nearest_capsule * 50))
+
     return score
 
 
 # Abbreviation
-better = betterEvaluationFunction
+better = betterEvaluationFunctionForMinimax

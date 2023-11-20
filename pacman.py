@@ -42,6 +42,7 @@ The keys are 'a', 's', 'd', and 'w' to move (or arrow keys).  Have fun!
 import os
 import random
 import sys
+import time
 
 import layout
 from game import Actions
@@ -728,8 +729,12 @@ if __name__ == '__main__':
 
     > python pacman.py --help
     """
+    t = time.time()
     args = readCommand(sys.argv[1:])  # Get game components based on input
     runGames(**args)
+    t1 = time.time()
+
+    print("running time :", t1 - t)
 
     # import cProfile
     # cProfile.run("runGames( **args )")
